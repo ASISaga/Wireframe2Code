@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wireframe2Code</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+      color: #1c1c1c;
+      background: #fff;
+      padding: 16px;
+    }
+
+    h2 { font-size: 15px; font-weight: 600; }
+
+    .subtitle {
+      font-size: 12px;
+      color: #888;
+      margin: 4px 0 16px;
+    }
+
+    .section {
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .description {
+      font-size: 12px;
+      color: #666;
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+
+    .file-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f5f5f5;
+      border: 1px dashed #ccc;
+      border-radius: 6px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-size: 12px;
+      color: #444;
+      transition: border-color 0.15s;
+      user-select: none;
+    }
+    .file-label:hover { border-color: #888; }
+
+    input[type="file"] { display: none; }
+
+    .file-name {
+      font-size: 11px;
+      color: #888;
+      margin-top: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #eee;
+      margin: 10px 0;
+    }
+
+    button {
+      display: block;
+      width: 100%;
+      padding: 9px 14px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-primary { background: #0066ff; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #0052cc; }
+
+    .btn-secondary { background: #f0f0f0; color: #1c1c1c; }
+    .btn-secondary:hover:not(:disabled) { background: #e0e0e0; }
+
+    .status {
+      margin-top: 12px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      line-height: 1.5;
+      display: none;
+    }
+    .status.visible { display: block; }
+    .status.success { background: #e6f4ea; color: #1a7f37; }
+    .status.error   { background: #fde8e8; color: #c0392b; }
+    .status.info    { background: #e8f0fe; color: #1a56db; }
+  </style>
+</head>
+<body>
+
+  <h2>Wireframe2Code</h2>
+  <p class="subtitle">Bidirectional sync: JSON ↔ Figma nodes</p>
+
+  <!-- ── Import ─────────────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title">Import — JSON → Figma</div>
+    <p class="description">
+      Choose a blueprint JSON file to create or update Figma nodes on the
+      current page. Existing nodes are matched by their <code>id</code> and
+      updated in place; new nodes are inserted; removed entries are deleted.
+    </p>
+
+    <label class="file-label" for="fileInput">
+      <!-- upload icon -->
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M3 12.5V3.5C3 2.948 3.448 2.5 4 2.5H9L13 6.5V12.5C13 13.052 12.552 13.5 12 13.5H4C3.448 13.5 3 13.052 3 12.5Z"
+              stroke="#666" stroke-width="1.2"/>
+        <path d="M9 2.5V6.5H13" stroke="#666" stroke-width="1.2"/>
+        <path d="M8 10.5V7.5M8 7.5L6.5 9M8 7.5L9.5 9"
+              stroke="#666" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Choose JSON file
+    </label>
+    <input type="file" id="fileInput" accept=".json" aria-label="Choose blueprint JSON file" />
+    <div class="file-name" id="fileName">No file selected</div>
+
+    <hr class="divider" />
+    <button class="btn-primary" id="importBtn" disabled>Import to Figma</button>
+  </div>
+
+  <!-- ── Export ─────────────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title">Export — Figma → JSON</div>
+    <p class="description">
+      Select a Figma node, then click Export. The plugin reads the node tree
+      and downloads a blueprint JSON file you can commit alongside your schemas.
+    </p>
+    <button class="btn-secondary" id="exportBtn">Export Selected Node</button>
+  </div>
+
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const fileNameEl = document.getElementById('fileName');
+    const importBtn = document.getElementById('importBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const statusEl = document.getElementById('status');
+
+    let pendingData = null;
+
+    function showStatus(msg, type) {
+      statusEl.textContent = msg;
+      statusEl.className = 'status visible ' + type;
+    }
+
+    function hideStatus() {
+      statusEl.className = 'status';
+    }
+
+    // ── File picker ──────────────────────────────────────────────────────
+    fileInput.addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      fileNameEl.textContent = file.name;
+      const reader = new FileReader();
+
+      reader.onload = function (ev) {
+        try {
+          pendingData = JSON.parse(ev.target.result);
+          importBtn.disabled = false;
+          showStatus('Ready to import: ' + file.name, 'info');
+        } catch (err) {
+          pendingData = null;
+          importBtn.disabled = true;
+          showStatus('Invalid JSON — ' + err.message, 'error');
+        }
+      };
+
+      reader.onerror = function () {
+        pendingData = null;
+        importBtn.disabled = true;
+        showStatus('Could not read the file.', 'error');
+      };
+
+      reader.readAsText(file);
+    });
+
+    // ── Import button ────────────────────────────────────────────────────
+    importBtn.addEventListener('click', function () {
+      if (!pendingData) return;
+      importBtn.disabled = true;
+      hideStatus();
+      parent.postMessage({ pluginMessage: { type: 'import', data: pendingData } }, '*');
+    });
+
+    // ── Export button ────────────────────────────────────────────────────
+    exportBtn.addEventListener('click', function () {
+      hideStatus();
+      parent.postMessage({ pluginMessage: { type: 'export' } }, '*');
+    });
+
+    // ── Messages from plugin main thread ─────────────────────────────────
+    window.onmessage = function (event) {
+      const msg = event.data.pluginMessage;
+      if (!msg) return;
+
+      switch (msg.type) {
+        case 'import-success':
+          importBtn.disabled = false;
+          showStatus('✓ Imported "' + msg.name + '" successfully.', 'success');
+          break;
+
+        case 'export-success': {
+          const json = JSON.stringify(msg.data, null, 2);
+          const blob = new Blob([json], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          const filename = (msg.data.id || 'blueprint') + '.json';
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          showStatus('✓ Exported "' + filename + '" successfully.', 'success');
+          break;
+        }
+
+        case 'error':
+          importBtn.disabled = false;
+          showStatus('✗ ' + msg.message, 'error');
+          break;
+      }
+    };
+  </script>
+</body>
+</html>
