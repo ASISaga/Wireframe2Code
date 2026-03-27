@@ -40,24 +40,24 @@ interface FigmaColorWithAlpha extends FigmaColor {
   a: number;
 }
 
-interface SolidPaint {
+interface BlueprintSolidPaint {
   type: 'SOLID';
   color: FigmaColor;
   opacity?: number;
 }
 
-interface GradientStop {
+interface BlueprintGradientStop {
   color: FigmaColorWithAlpha;
   position: number;  // 0–1
 }
 
-interface GradientPaint {
+interface BlueprintGradientPaint {
   type: 'GRADIENT_LINEAR' | 'GRADIENT_RADIAL';
-  gradientStops: GradientStop[];
+  gradientStops: BlueprintGradientStop[];
   gradientTransform: number[][];
 }
 
-type FigmaPaint = SolidPaint | GradientPaint;
+type FigmaPaint = BlueprintSolidPaint | BlueprintGradientPaint;
 
 interface FigmaDropShadowEffect {
   type: 'DROP_SHADOW' | 'INNER_SHADOW';
@@ -317,11 +317,11 @@ async function applyFigmaStyles(
           return {
             type: 'SOLID',
             color: paint.color,
-            opacity: (paint as SolidPaint).opacity ?? 1,
+            opacity: (paint as BlueprintSolidPaint).opacity ?? 1,
           } as Paint;
         }
         if (paint.type === 'GRADIENT_LINEAR' || paint.type === 'GRADIENT_RADIAL') {
-          const gp = paint as GradientPaint;
+          const gp = paint as BlueprintGradientPaint;
           return {
             type: paint.type,
             gradientTransform: gp.gradientTransform as Transform,
@@ -340,8 +340,8 @@ async function applyFigmaStyles(
   if (styles.strokes !== undefined && 'strokes' in node) {
     (node as GeometryMixin).strokes = styles.strokes.map(paint => ({
       type: 'SOLID',
-      color: (paint as SolidPaint).color,
-      opacity: (paint as SolidPaint).opacity ?? 1,
+      color: (paint as BlueprintSolidPaint).color,
+      opacity: (paint as BlueprintSolidPaint).opacity ?? 1,
     })) as Paint[];
 
     if (styles.strokeWeight !== undefined && 'strokeWeight' in node) {
@@ -425,7 +425,6 @@ async function applyFigmaStyles(
     }
 
     if (typo.fontSize)      textNode.fontSize      = typo.fontSize;
-    if (typo.fontWeight)    textNode.fontWeight    = typo.fontWeight;
     if (typo.lineHeight)    textNode.lineHeight    = typo.lineHeight as LineHeight;
     if (typo.letterSpacing) textNode.letterSpacing = typo.letterSpacing as LetterSpacing;
     if (typo.textTransform) textNode.textCase      = typo.textTransform as TextCase;
