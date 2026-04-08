@@ -145,7 +145,11 @@ const SPACING_TOKENS: Record<string, number> = {
 };
 
 function resolveSpacingToken(token: string): number {
-  return SPACING_TOKENS[token] ?? 0;
+  // Ensure we handle potential casing mismatches from the shell script
+  const normalizedToken = token.toLowerCase();
+  const val = SPACING_TOKENS[normalizedToken];
+  
+  return typeof val === 'number' ? val : 0;
 }
 
 function pixelToSpacingToken(px: number): string {
@@ -418,7 +422,7 @@ async function applyFigmaStyles(
     try {
       await figma.loadFontAsync(fontName);
       textNode.fontName = fontName;
-    } catch {
+    } catch (err) {
       // Fallback to Inter Regular if the specified font is not available
       await figma.loadFontAsync({ family: 'Inter', style: 'Regular' });
       textNode.fontName = { family: 'Inter', style: 'Regular' };
@@ -474,12 +478,17 @@ async function reconcileChildren(
 function exportBlueprintFile(node: SceneNode): BlueprintFile {
   const nodeData = exportBlueprintNode(node);
   const description = node.getPluginData('blueprintDescription');
-  const result: BlueprintFile = {
+
+  // Use Object.assign to merge the schema/version with the node data
+  const result: BlueprintFile = Object.assign({
     $schema: BLUEPRINT_SCHEMA,
     version: node.getPluginData('blueprintVersion') || DEFAULT_VERSION,
-    ...nodeData,
-  };
-  if (description) result.description = description;
+  }, nodeData);
+
+  if (description) {
+    result.description = description;
+  }
+
   return result;
 }
 
